@@ -1,11 +1,12 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import * as THREE from "three";
-import globe from "../assets/globe.jpg";
+import globeTexture from "../assets/globe.jpg";
 import atmosphereFragmentShader from "../shaders/atmosphereFragment.glsl";
 import atmosphereVertexShader from "../shaders/atmosphereVertex.glsl";
 import fragmentShader from "../shaders/fragment.glsl";
 import vertexShader from "../shaders/vertex.glsl";
 import gsap from "gsap";
+import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 
 const Globe = () => {
   const mountRef = useRef<HTMLDivElement>(null);
@@ -16,21 +17,28 @@ const Globe = () => {
       y: 0,
     };
     const scene = new THREE.Scene();
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+
     const camera = new THREE.PerspectiveCamera(
       75,
       window.innerWidth / window.innerHeight,
       0.1,
       1000
     );
-    camera.position.z = 15;
-
+    const controls = new OrbitControls(camera, renderer.domElement);
     const group = new THREE.Group();
 
-    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    // Setup camera
+    camera.position.z = 15;
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.05;
+
     renderer.setSize(window.innerWidth, window.innerHeight);
     renderer.setPixelRatio(window.devicePixelRatio);
-
     document.body.appendChild(renderer.domElement);
+
+    // geography
+    const radius = 5;
 
     // Handle window resize
     const handleResize = () => {
@@ -41,20 +49,20 @@ const Globe = () => {
     window.addEventListener("resize", handleResize);
 
     // globe sphere object
-    const globeSphere = new THREE.Mesh(
-      new THREE.SphereGeometry(5, 50, 50),
+    const sphere = new THREE.Mesh(
+      new THREE.SphereGeometry(radius, 50, 50),
       new THREE.ShaderMaterial({
         vertexShader,
         fragmentShader,
         uniforms: {
           globeTexture: {
-            value: new THREE.TextureLoader().load(globe),
+            value: new THREE.TextureLoader().load(globeTexture),
           },
         },
       })
     );
 
-    group.add(globeSphere);
+    group.add(sphere);
     scene.add(group);
 
     // atmosphere sphere object
@@ -79,7 +87,7 @@ const Globe = () => {
     for (let i = 0; i < 10000; i++) {
       const x = (Math.random() - 0.5) * 2000;
       const y = (Math.random() - 0.5) * 2000;
-      const z = -Math.random() * 2000;
+      const z = (Math.random() - 0.5) * 2000;
       starVertices.push(x, y, z);
     }
     starGeometry.setAttribute(
@@ -92,7 +100,7 @@ const Globe = () => {
     function animate() {
       requestAnimationFrame(animate);
       renderer.render(scene, camera);
-      globeSphere.rotation.y += 0.001;
+      sphere.rotation.y += 0.001;
       gsap.to(group.rotation, {
         x: -mouse.y * 0.3,
         y: mouse.x * 0.5,
@@ -100,44 +108,45 @@ const Globe = () => {
       });
     }
     animate();
-    let isDragging = false;
 
-    const handleMouseMove = (event: MouseEvent) => {
-      if (isDragging) {
-        mouse.x = (event.clientX / window.innerWidth) * 2 - 2;
-        mouse.y = -(event.clientY / window.innerHeight) * 2 + 2;
+    const raycaster = new THREE.Raycaster();
+
+    addEventListener("pointerdown", (event) => {
+      // Calculate mouse position in normalized device coordinates (-1 to +1)
+      const mouse = new THREE.Vector2();
+      mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+      mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+
+      // Update the picking ray with the camera and mouse position
+      raycaster.setFromCamera(mouse, camera);
+
+      // Calculate objects intersecting the picking ray
+      const intersects = raycaster.intersectObject(sphere);
+      console.log("intersects", intersects);
+      if (intersects.length > 0) {
+        const point = intersects[0].point.normalize();
+
+        // Convert intersection point to latitude and longitude
+        const latitude = 90 - (Math.acos(point.y) * 180) / Math.PI;
+        const longitude =
+          (((Math.atan2(point.x, point.z) * 180) / Math.PI + 180) % 360) - 180;
+
+        console.log(
+          `Latitude: ${latitude.toFixed(2)}°, Longitude: ${longitude.toFixed(
+            2
+          )}°`
+        );
       }
-    };
-
-    addEventListener("pointerdown", () => {
-      isDragging = true;
-    });
-
-    addEventListener("mousemove", handleMouseMove);
-
-    addEventListener("pointerup", () => {
-      isDragging = false;
     });
 
     return () => {
       if (mountRef.current) {
         mountRef.current.removeChild(renderer.domElement);
-        removeEventListener("pointerdown", () => {
-          isDragging = true;
-        });
-        removeEventListener("mousemove", handleMouseMove);
-        removeEventListener("pointerup", () => {
-          isDragging = false;
-        });
       }
     };
   }, []);
 
-  return (
-    <div ref={mountRef} className="w-full h-screen">
-      <button>Stop spinning</button>
-    </div>
-  );
+  return <div ref={mountRef} className="w-full h-screen"></div>;
 };
 
 export default Globe;
