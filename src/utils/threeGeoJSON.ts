@@ -7,10 +7,16 @@ and draws the geoJSON geometries.
 
 */
 
-export function drawThreeGeo(json, radius, shape, materalOptions, container) {
-  const x_values = [];
-  const y_values = [];
-  const z_values = [];
+export function drawThreeGeo(
+  json: any,
+  radius: number,
+  shape: "sphere" | "plane",
+  materalOptions: any,
+  container: any
+) {
+  const x_values: number[] = [];
+  const y_values: number[] = [];
+  const z_values: number[] = [];
 
   const json_geom = createGeometryArray(json);
   //An array to hold the feature geometries.
@@ -113,7 +119,7 @@ export function drawThreeGeo(json, radius, shape, materalOptions, container) {
     }
   }
 
-  function createGeometryArray(json) {
+  function createGeometryArray(json: any) {
     let geometry_array = [];
 
     if (json.type == "Feature") {
@@ -137,7 +143,7 @@ export function drawThreeGeo(json, radius, shape, materalOptions, container) {
     return geometry_array;
   }
 
-  function getConversionFunctionName(shape) {
+  function getConversionFunctionName(shape: "sphere" | "plane") {
     let conversionFunctionName;
 
     if (shape == "sphere") {
@@ -150,7 +156,7 @@ export function drawThreeGeo(json, radius, shape, materalOptions, container) {
     return conversionFunctionName;
   }
 
-  function createCoordinateArray(feature) {
+  function createCoordinateArray(feature: any) {
     //Loop through the coordinates and figure out if the points need interpolation.
     const temp_array = [];
     let interpolation_array = [];
@@ -181,7 +187,10 @@ export function drawThreeGeo(json, radius, shape, materalOptions, container) {
     return temp_array;
   }
 
-  function needsInterpolation(point2, point1) {
+  function needsInterpolation(
+    point2: [number, number],
+    point1: [number, number]
+  ) {
     //If the distance between two latitude and longitude values is
     //greater than five degrees, return true.
     const lon1 = point1[0];
@@ -198,7 +207,7 @@ export function drawThreeGeo(json, radius, shape, materalOptions, container) {
     }
   }
 
-  function interpolatePoints(interpolation_array) {
+  function interpolatePoints(interpolation_array: any): any {
     //This function is recursive. It will continue to add midpoints to the
     //interpolation array until needsInterpolation() returns false.
     let temp_array = [];
@@ -230,7 +239,7 @@ export function drawThreeGeo(json, radius, shape, materalOptions, container) {
     return temp_array;
   }
 
-  function getMidpoint(point1, point2) {
+  function getMidpoint(point1: [number, number], point2: [number, number]) {
     const midpoint_lon = (point1[0] + point2[0]) / 2;
     const midpoint_lat = (point1[1] + point2[1]) / 2;
     const midpoint = [midpoint_lon, midpoint_lat];
@@ -238,7 +247,10 @@ export function drawThreeGeo(json, radius, shape, materalOptions, container) {
     return midpoint;
   }
 
-  function convertToSphereCoords(coordinates_array, sphere_radius) {
+  function convertToSphereCoords(
+    coordinates_array: [number, number],
+    sphere_radius: number
+  ) {
     const lon = coordinates_array[0];
     const lat = coordinates_array[1];
 
@@ -255,7 +267,10 @@ export function drawThreeGeo(json, radius, shape, materalOptions, container) {
     z_values.push(Math.sin((lat * Math.PI) / 180) * sphere_radius);
   }
 
-  function convertToPlaneCoords(coordinates_array, radius) {
+  function convertToPlaneCoords(
+    coordinates_array: [number, number],
+    radius: number
+  ) {
     const lon = coordinates_array[0];
     const lat = coordinates_array[1];
 
@@ -263,7 +278,7 @@ export function drawThreeGeo(json, radius, shape, materalOptions, container) {
     y_values.push((lon / 180) * radius);
   }
 
-  function drawParticle(x, y, z, options) {
+  function drawParticle(x: number, y: number, z: number, options: any) {
     let geo = new THREE.BufferGeometry();
     geo.setAttribute(
       "position",
@@ -272,13 +287,13 @@ export function drawThreeGeo(json, radius, shape, materalOptions, container) {
 
     const particle_material = new THREE.PointsMaterial(options);
 
-    const particle = new THREE.Points(particle_geom, particle_material);
+    const particle = new THREE.Points(geo, particle_material);
     container.add(particle);
 
     clearArrays();
   }
 
-  function drawLine(x_values, y_values, z_values, options) {
+  function drawLine(x_values: any, y_values: any, z_values: any, options: any) {
     const line_geom = new THREE.BufferGeometry();
     createVertexForEachPoint(line_geom, x_values, y_values, z_values);
 
@@ -290,10 +305,10 @@ export function drawThreeGeo(json, radius, shape, materalOptions, container) {
   }
 
   function createVertexForEachPoint(
-    object_geometry,
-    values_axis1,
-    values_axis2,
-    values_axis3
+    object_geometry: any,
+    values_axis1: any,
+    values_axis2: any,
+    values_axis3: any
   ) {
     const verts = [];
     for (let i = 0; i < values_axis1.length; i++) {
@@ -310,4 +325,39 @@ export function drawThreeGeo(json, radius, shape, materalOptions, container) {
     y_values.length = 0;
     z_values.length = 0;
   }
+}
+
+export function latLonToVector3(
+  lat: number,
+  lon: number,
+  radius: number
+): THREE.Vector3 {
+  const phi = (90 - lat) * (Math.PI / 180); // latitude to polar angle
+  const theta = (lon + 180) * (Math.PI / 180); // longitude to azimuthal angle
+
+  const x = -radius * Math.sin(phi) * Math.cos(theta); // negative for right-handed system
+  const z = radius * Math.sin(phi) * Math.sin(theta);
+  const y = radius * Math.cos(phi);
+
+  return new THREE.Vector3(x, y, z);
+}
+
+// export function vector3ToLatLon(vector: THREE.Vector3): {
+//   lat: number;
+//   lon: number;
+// } {
+//   const normalized = vector.clone().normalize(); // ensure it's on unit sphere
+
+//   const lat = 90 - Math.acos(normalized.y) * (180 / Math.PI);
+//   const lon = Math.atan2(normalized.z, -normalized.x) * (180 / Math.PI);
+
+//   return { lat, lon };
+// }
+
+export function vector3ToLatLon(v: THREE.Vector3) {
+  const p = v.clone().normalize();
+  const lat = 90 - Math.acos(p.y) * (180 / Math.PI);
+  let lon = Math.atan2(p.z, -p.x) * (180 / Math.PI);
+  if (lon > 180) lon -= 360; // ensure -180 to 180
+  return { lat, lon };
 }

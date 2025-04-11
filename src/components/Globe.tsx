@@ -1,22 +1,17 @@
-import gsap from "gsap";
 import { useEffect, useRef } from "react";
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
-import globeTexture from "../assets/globe.jpg";
+import globeTexture from "../assets/8k_earth_daymap.jpg";
 import atmosphereFragmentShader from "../shaders/atmosphereFragment.glsl";
 import atmosphereVertexShader from "../shaders/atmosphereVertex.glsl";
 import fragmentShader from "../shaders/fragment.glsl";
 import vertexShader from "../shaders/vertex.glsl";
-import { drawThreeGeo } from "../utils/threeGeoJSON.js";
+import { latLonToVector3, vector3ToLatLon } from "../utils/threeGeoJSON.js";
 
 const Globe = () => {
   const mountRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const mouse = {
-      x: 0,
-      y: 0,
-    };
     const scene = new THREE.Scene();
     const renderer = new THREE.WebGLRenderer({ antialias: true });
 
@@ -41,9 +36,9 @@ const Globe = () => {
     // geography
     const radius = 5;
 
-    var planet = new THREE.Object3D();
-    planet.rotation.x = -Math.PI * 0.5;
-    scene.add(planet);
+    // var planet = new THREE.Object3D();
+    // planet.rotation.x = -Math.PI * 0.5;
+    // scene.add(planet);
 
     // Handle window resize
     const handleResize = () => {
@@ -65,6 +60,11 @@ const Globe = () => {
     // globe sphere object
     const sphere = new THREE.Mesh(
       new THREE.SphereGeometry(radius, 50, 50),
+      // new THREE.MeshBasicMaterial({
+      //   color: 0x333333,
+      //   wireframe: true,
+      //   transparent: true,
+      // })
       new THREE.ShaderMaterial({
         vertexShader,
         fragmentShader,
@@ -78,6 +78,22 @@ const Globe = () => {
 
     group.add(sphere);
     scene.add(group);
+    // group.rotation.y = Math.PI;
+
+    const gMarker = new THREE.SphereGeometry(0.02, 16, 16); // small red dot
+    const mMarker = new THREE.MeshBasicMaterial({ color: 0xff3232 });
+    const londonLat = 51.5072;
+    const londonLon = -0.1276;
+
+    const marker = new THREE.Mesh(gMarker, mMarker);
+    const position = latLonToVector3(londonLat, londonLon, radius + 0.1);
+    marker.position.copy(position);
+    group.add(marker);
+
+    const marker2 = new THREE.Mesh(gMarker, mMarker);
+    const position2 = latLonToVector3(0, 0, radius + 0.1);
+    marker2.position.copy(position2);
+    group.add(marker2);
 
     // atmosphere sphere object
     const atmosphere = new THREE.Mesh(
@@ -111,68 +127,83 @@ const Globe = () => {
     const stars = new THREE.Points(starGeometry, starMaterial);
     scene.add(stars);
 
-    fetch("/geo_data/countries.json")
-      .then((response) => response.text())
-      .then((text) => {
-        const data = JSON.parse(text);
-        // json, radius, shape, materalOptions, container
-        drawThreeGeo(
-          data,
-          radius,
-          "sphere",
-          {
-            color: 0x80ff80,
-          },
-          planet
-        );
-      });
+    // fetch("/geo_data/countries.json")
+    //   .then((response) => response.text())
+    //   .then((text) => {
+    //     const data = JSON.parse(text);
+    //     // json, radius, shape, materalOptions, container
+    //     drawThreeGeo(
+    //       data,
+    //       radius,
+    //       "sphere",
+    //       {
+    //         color: 0x80ff80,
+    //       },
+    //       planet
+    //     );
+    //   });
 
     function animate() {
       controls.update();
       requestAnimationFrame(animate);
       renderer.render(scene, camera);
       //   sphere.rotation.y += 0.0005;
-      gsap.to(group.rotation, {
-        x: -mouse.y * 0.3,
-        y: mouse.x * 0.5,
-        duration: 2,
-      });
+      // gsap.to(group.rotation, {
+      //   x: -mouse.y * 0.3,
+      //   y: mouse.x * 0.5,
+      //   duration: 2,
+      // });
     }
     animate();
 
     const raycaster = new THREE.Raycaster();
 
-    addEventListener("pointerdown", (event) => {
-      // Calculate mouse position in normalized device coordinates (-1 to +1)
+    const handlePointerDown = (event: PointerEvent) => {
+      event.stopPropagation();
+
       const mouse = new THREE.Vector2();
       mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
       mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
 
-      // Update the picking ray with the camera and mouse position
       raycaster.setFromCamera(mouse, camera);
+      const intersect = raycaster.intersectObject(sphere)[0];
 
-      // Calculate objects intersecting the picking ray
-      const intersects = raycaster.intersectObject(sphere);
-      console.log("intersects", intersects);
-      if (intersects.length > 0) {
-        const point = intersects[0].point.normalize();
+      if (intersect) {
+        const originalRotation = group.rotation.clone();
+        group.rotation.set(0, 0, 0);
+        group.updateMatrixWorld();
 
-        // Convert intersection point to latitude and longitude
-        const latitude = 90 - (Math.acos(point.y) * 180) / Math.PI;
-        const longitude =
-          (((Math.atan2(point.x, point.z) * 180) / Math.PI + 180) % 360) - 180;
+        const point = intersect.point.clone();
+        group.worldToLocal(point);
+        point.normalize();
 
-        console.log(
-          `Latitude: ${latitude.toFixed(2)}°, Longitude: ${longitude.toFixed(
-            2
-          )}°`
-        );
+        function vector3ToLatLon(v: THREE.Vector3) {
+          const p = v.clone().normalize();
+          const lat = 90 - Math.acos(p.y) * (180 / Math.PI);
+          let lon = 360 - (180 - Math.atan2(p.z, -p.x) * (180 / Math.PI));
+          if (lon > 180) lon -= 360; // ensure -180 to 180
+          return { lat, lon };
+        }
+
+        const { lat, lon } = vector3ToLatLon(point);
+        console.log(`Lat: ${lat.toFixed(2)}°, Lon: ${lon.toFixed(2)}°`);
+
+        group.rotation.copy(originalRotation);
+        group.updateMatrixWorld();
       }
-    });
+    };
+
+    renderer.domElement.addEventListener("pointerdown", handlePointerDown);
+
+    renderer.domElement.addEventListener("pointerdown", handlePointerDown);
 
     return () => {
       if (mountRef.current) {
         mountRef.current.removeChild(renderer.domElement);
+        renderer.domElement.removeEventListener(
+          "pointerdown",
+          handlePointerDown
+        );
       }
     };
   }, []);
@@ -181,93 +212,3 @@ const Globe = () => {
 };
 
 export default Globe;
-
-// import * as THREE from "three";
-// import { OrbitControls } from "three/examples/jsm/controls/OrbitControls";
-// import { useEffect, useRef } from "react";
-
-// const Globe = () => {
-//   const containerRef = useRef<HTMLDivElement>(null);
-
-//   useEffect(() => {
-//     const scene = new THREE.Scene();
-//     const camera = new THREE.PerspectiveCamera(
-//       60,
-//       containerRef.current.clientWidth / containerRef.current.clientHeight,
-//       0.1,
-//       1000
-//     );
-//     camera.position.z = 200;
-
-//     const renderer = new THREE.WebGLRenderer({ antialias: true });
-//     renderer.setSize(
-//       containerRef.current.clientWidth,
-//       containerRef.current.clientHeight
-//     );
-//     containerRef.current.appendChild(renderer.domElement);
-
-//     // Orbit Controls
-//     const controls = new OrbitControls(camera, renderer.domElement);
-
-//     // Create Globe
-//     const radius = 100;
-//     const globe = new THREE.Mesh(
-//       new THREE.SphereGeometry(radius, 64, 64),
-//       new THREE.MeshBasicMaterial({ color: 0x003366, wireframe: true })
-//     );
-//     scene.add(globe);
-
-//     // Load GeoJSON
-//     fetch("/your-geojson.json")
-//       .then((res) => res.json())
-//       .then((geoData) => {
-//         geoData.features.forEach((feature) => {
-//           const coords = feature.geometry.coordinates;
-//           const polygons =
-//             feature.geometry.type === "Polygon" ? [coords] : coords;
-
-//           polygons.forEach((polygon) => {
-//             polygon.forEach((ring) => {
-//               const points = ring.map(([lon, lat]) =>
-//                 latLongToVector3(lat, lon, radius)
-//               );
-//               const line = createLine(points);
-//               scene.add(line);
-//             });
-//           });
-//         });
-//       });
-
-//     const latLongToVector3 = (lat, lon, radius) => {
-//       const phi = (90 - lat) * (Math.PI / 180);
-//       const theta = (lon + 180) * (Math.PI / 180);
-//       const x = -radius * Math.sin(phi) * Math.cos(theta);
-//       const z = radius * Math.sin(phi) * Math.sin(theta);
-//       const y = radius * Math.cos(phi);
-//       return new THREE.Vector3(x, y, z);
-//     };
-
-//     const createLine = (points) => {
-//       const geometry = new THREE.BufferGeometry().setFromPoints(points);
-//       const material = new THREE.LineBasicMaterial({ color: 0xffff00 });
-//       return new THREE.LineLoop(geometry, material);
-//     };
-
-//     const animate = () => {
-//       requestAnimationFrame(animate);
-//       controls.update();
-//       renderer.render(scene, camera);
-//     };
-//     animate();
-
-//     // Cleanup
-//     return () => {
-//       renderer.dispose();
-//       containerRef.current.removeChild(renderer.domElement);
-//     };
-//   }, []);
-
-//   return <div ref={containerRef} style={{ width: "100%", height: "100vh" }} />;
-// };
-
-// export default Globe;
