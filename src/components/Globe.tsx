@@ -6,7 +6,11 @@ import atmosphereFragmentShader from "../shaders/atmosphereFragment.glsl";
 import atmosphereVertexShader from "../shaders/atmosphereVertex.glsl";
 import fragmentShader from "../shaders/fragment.glsl";
 import vertexShader from "../shaders/vertex.glsl";
-import { latLonToVector3, vector3ToLatLon } from "../utils/threeGeoJSON.js";
+import {
+  getCountryFromJSON,
+  getCountryFromLatLon,
+  latLonToVector3,
+} from "../utils/threeGeoJSON.js";
 
 const Globe = () => {
   const mountRef = useRef<HTMLDivElement>(null);
@@ -181,12 +185,20 @@ const Globe = () => {
           const p = v.clone().normalize();
           const lat = 90 - Math.acos(p.y) * (180 / Math.PI);
           let lon = 360 - (180 - Math.atan2(p.z, -p.x) * (180 / Math.PI));
-          if (lon > 180) lon -= 360; // ensure -180 to 180
+          if (lon > 180) lon -= 360;
           return { lat, lon };
         }
 
         const { lat, lon } = vector3ToLatLon(point);
+        // log coordinates
         console.log(`Lat: ${lat.toFixed(2)}°, Lon: ${lon.toFixed(2)}°`);
+
+        // log country name from api
+        getCountryFromLatLon(lat, lon).then((country) =>
+          console.log("Country from api: ", country)
+        );
+        // log country name from json
+        console.log("Country from json: ", getCountryFromJSON(lat, lon));
 
         group.rotation.copy(originalRotation);
         group.updateMatrixWorld();

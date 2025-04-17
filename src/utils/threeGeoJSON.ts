@@ -1,4 +1,21 @@
 import * as THREE from "three";
+import countries from "./countries.json"; // assuming you've imported your GeoJSON file
+import { point, booleanPointInPolygon } from "@turf/turf";
+import type { Polygon, MultiPolygon, Feature } from "geojson";
+
+export function getCountryFromJSON(lat: number, lon: number) {
+  const pt = point([lon, lat]);
+
+  for (let rawFeature of countries.features) {
+    const feature = rawFeature as Feature<Polygon | MultiPolygon>;
+    if (booleanPointInPolygon(pt, feature)) {
+      console.log(feature.properties);
+      return feature?.properties?.name;
+    }
+  }
+
+  return "Unknown";
+}
 
 /* Draw GeoJSON
 
@@ -342,22 +359,18 @@ export function latLonToVector3(
   return new THREE.Vector3(x, y, z);
 }
 
-// export function vector3ToLatLon(vector: THREE.Vector3): {
-//   lat: number;
-//   lon: number;
-// } {
-//   const normalized = vector.clone().normalize(); // ensure it's on unit sphere
-
-//   const lat = 90 - Math.acos(normalized.y) * (180 / Math.PI);
-//   const lon = Math.atan2(normalized.z, -normalized.x) * (180 / Math.PI);
-
-//   return { lat, lon };
-// }
-
 export function vector3ToLatLon(v: THREE.Vector3) {
   const p = v.clone().normalize();
   const lat = 90 - Math.acos(p.y) * (180 / Math.PI);
   let lon = Math.atan2(p.z, -p.x) * (180 / Math.PI);
   if (lon > 180) lon -= 360; // ensure -180 to 180
   return { lat, lon };
+}
+
+export async function getCountryFromLatLon(lat: number, lon: number) {
+  const response = await fetch(
+    `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json`
+  );
+  const data = await response.json();
+  return data.address.country || "Unknown";
 }
