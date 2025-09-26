@@ -1,12 +1,36 @@
 import * as THREE from "three";
-import countries from "./countries.json"; // assuming you've imported your GeoJSON file
+import countries from "./countries.json";
 import { point, booleanPointInPolygon } from "@turf/turf";
 import type { Polygon, MultiPolygon, Feature } from "geojson";
+
+export function latLonToVector3(
+  lat: number,
+  lon: number,
+  radius: number
+): THREE.Vector3 {
+  // Convert latitude and longitude to radians
+  const phi = (90 - lat) * (Math.PI / 180);
+  const theta = (lon + 180) * (Math.PI / 180);
+
+  const x = -radius * Math.sin(phi) * Math.cos(theta);
+  const z = radius * Math.sin(phi) * Math.sin(theta);
+  const y = radius * Math.cos(phi);
+
+  return new THREE.Vector3(x, y, z);
+}
+
+export async function getCountryFromLatLon(lat: number, lon: number) {
+  const response = await fetch(
+    `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json`
+  );
+  const data = await response.json();
+  return data.address !== undefined ? data.address.country : "Unknown";
+}
 
 export function getCountryFromJSON(lat: number, lon: number) {
   const pt = point([lon, lat]);
 
-  for (let rawFeature of countries.features) {
+  for (const rawFeature of countries.features) {
     const feature = rawFeature as Feature<Polygon | MultiPolygon>;
     if (booleanPointInPolygon(pt, feature)) {
       console.log(feature.properties);
@@ -137,7 +161,7 @@ export function drawThreeGeo(
   }
 
   function createGeometryArray(json: any) {
-    let geometry_array = [];
+    const geometry_array = [];
 
     if (json.type == "Feature") {
       geometry_array.push(json.geometry);
@@ -156,7 +180,7 @@ export function drawThreeGeo(
     } else {
       throw new Error("The geoJSON is not valid.");
     }
-    //alert(geometry_array.length);
+
     return geometry_array;
   }
 
@@ -296,7 +320,7 @@ export function drawThreeGeo(
   }
 
   function drawParticle(x: number, y: number, z: number, options: any) {
-    let geo = new THREE.BufferGeometry();
+    const geo = new THREE.BufferGeometry();
     geo.setAttribute(
       "position",
       new THREE.Float32BufferAttribute([x, y, z], 3)
@@ -342,35 +366,4 @@ export function drawThreeGeo(
     y_values.length = 0;
     z_values.length = 0;
   }
-}
-
-export function latLonToVector3(
-  lat: number,
-  lon: number,
-  radius: number
-): THREE.Vector3 {
-  const phi = (90 - lat) * (Math.PI / 180); // latitude to polar angle
-  const theta = (lon + 180) * (Math.PI / 180); // longitude to azimuthal angle
-
-  const x = -radius * Math.sin(phi) * Math.cos(theta); // negative for right-handed system
-  const z = radius * Math.sin(phi) * Math.sin(theta);
-  const y = radius * Math.cos(phi);
-
-  return new THREE.Vector3(x, y, z);
-}
-
-export function vector3ToLatLon(v: THREE.Vector3) {
-  const p = v.clone().normalize();
-  const lat = 90 - Math.acos(p.y) * (180 / Math.PI);
-  let lon = Math.atan2(p.z, -p.x) * (180 / Math.PI);
-  if (lon > 180) lon -= 360; // ensure -180 to 180
-  return { lat, lon };
-}
-
-export async function getCountryFromLatLon(lat: number, lon: number) {
-  const response = await fetch(
-    `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json`
-  );
-  const data = await response.json();
-  return data.address.country || "Unknown";
 }

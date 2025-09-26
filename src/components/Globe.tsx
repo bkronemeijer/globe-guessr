@@ -37,12 +37,7 @@ const Globe = () => {
     renderer.setPixelRatio(window.devicePixelRatio);
     document.body.appendChild(renderer.domElement);
 
-    // geography
     const radius = 5;
-
-    // var planet = new THREE.Object3D();
-    // planet.rotation.x = -Math.PI * 0.5;
-    // scene.add(planet);
 
     // Handle window resize
     const handleResize = () => {
@@ -52,23 +47,9 @@ const Globe = () => {
     };
     window.addEventListener("resize", handleResize);
 
-    // var geometry = new THREE.SphereGeometry(radius, 32, 32);
-    // var material = new THREE.MeshBasicMaterial({
-    //   color: 0x333333,
-    //   wireframe: true,
-    //   transparent: true,
-    // });
-    // var sphere = new THREE.Mesh(geometry, material);
-    // planet.add(sphere);
-
     // globe sphere object
     const sphere = new THREE.Mesh(
       new THREE.SphereGeometry(radius, 50, 50),
-      // new THREE.MeshBasicMaterial({
-      //   color: 0x333333,
-      //   wireframe: true,
-      //   transparent: true,
-      // })
       new THREE.ShaderMaterial({
         vertexShader,
         fragmentShader,
@@ -82,9 +63,8 @@ const Globe = () => {
 
     group.add(sphere);
     scene.add(group);
-    // group.rotation.y = Math.PI;
 
-    const gMarker = new THREE.SphereGeometry(0.02, 16, 16); // small red dot
+    const gMarker = new THREE.SphereGeometry(0.02, 16, 16);
     const mMarker = new THREE.MeshBasicMaterial({ color: 0xff3232 });
     const londonLat = 51.5072;
     const londonLon = -0.1276;
@@ -110,9 +90,9 @@ const Globe = () => {
       })
     );
     atmosphere.scale.set(1.2, 1.2, 1.2);
-
     scene.add(atmosphere);
 
+    // Add stars
     const starGeometry = new THREE.BufferGeometry();
     const starMaterial = new THREE.PointsMaterial({
       color: 0xffffff,
@@ -131,32 +111,10 @@ const Globe = () => {
     const stars = new THREE.Points(starGeometry, starMaterial);
     scene.add(stars);
 
-    // fetch("/geo_data/countries.json")
-    //   .then((response) => response.text())
-    //   .then((text) => {
-    //     const data = JSON.parse(text);
-    //     // json, radius, shape, materalOptions, container
-    //     drawThreeGeo(
-    //       data,
-    //       radius,
-    //       "sphere",
-    //       {
-    //         color: 0x80ff80,
-    //       },
-    //       planet
-    //     );
-    //   });
-
     function animate() {
       controls.update();
       requestAnimationFrame(animate);
       renderer.render(scene, camera);
-      //   sphere.rotation.y += 0.0005;
-      // gsap.to(group.rotation, {
-      //   x: -mouse.y * 0.3,
-      //   y: mouse.x * 0.5,
-      //   duration: 2,
-      // });
     }
     animate();
 
@@ -181,10 +139,14 @@ const Globe = () => {
         group.worldToLocal(point);
         point.normalize();
 
-        function vector3ToLatLon(v: THREE.Vector3) {
-          const p = v.clone().normalize();
-          const lat = 90 - Math.acos(p.y) * (180 / Math.PI);
-          let lon = 360 - (180 - Math.atan2(p.z, -p.x) * (180 / Math.PI));
+        function vector3ToLatLon(point: THREE.Vector3) {
+          const normalisedPoint = point.clone().normalize();
+          const lat = 90 - Math.acos(normalisedPoint.y) * (180 / Math.PI);
+          let lon =
+            360 -
+            (180 -
+              Math.atan2(normalisedPoint.z, -normalisedPoint.x) *
+                (180 / Math.PI));
           if (lon > 180) lon -= 360;
           return { lat, lon };
         }
@@ -204,8 +166,6 @@ const Globe = () => {
         group.updateMatrixWorld();
       }
     };
-
-    renderer.domElement.addEventListener("pointerdown", handlePointerDown);
 
     renderer.domElement.addEventListener("pointerdown", handlePointerDown);
 
