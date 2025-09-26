@@ -1,54 +1,36 @@
-# React + TypeScript + Vite
+# Globe Guessr
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+This repository uses React + Typescript + Vite
 
-Currently, two official plugins are available:
+This is a work in progress. Currently you can view a globe in 3D. Clicking on any country on the globe will log some information regarding that country to the console.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react/README.md) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+https://github.com/user-attachments/assets/fc328ec3-ec27-4aae-bb4a-0198c690e9c1
 
-## Expanding the ESLint configuration
+Next steps are to shape this into a sort of reverse geo guessr game, where users can 
+- guess where certain coordinates are on the globe
+- click on a country name when prompted with one
+- click on a country that corresponds to certain attributes such as country size, or number of inhabitants
+- do this in multiplayer mode
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+## Prerequisites
 
-```js
-export default tseslint.config({
-  extends: [
-    // Remove ...tseslint.configs.recommended and replace with this
-    ...tseslint.configs.recommendedTypeChecked,
-    // Alternatively, use this for stricter rules
-    ...tseslint.configs.strictTypeChecked,
-    // Optionally, add this for stylistic rules
-    ...tseslint.configs.stylisticTypeChecked,
-  ],
-  languageOptions: {
-    // other options...
-    parserOptions: {
-      project: ['./tsconfig.node.json', './tsconfig.app.json'],
-      tsconfigRootDir: import.meta.dirname,
-    },
-  },
-})
-```
+Before getting started, ensure the following tools are installed on your system:
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+- [Node.js and npm](https://nodejs.org/)
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+## Installation
 
-export default tseslint.config({
-  plugins: {
-    // Add the react-x and react-dom plugins
-    'react-x': reactX,
-    'react-dom': reactDom,
-  },
-  rules: {
-    // other rules...
-    // Enable its recommended typescript rules
-    ...reactX.configs['recommended-typescript'].rules,
-    ...reactDom.configs.recommended.rules,
-  },
-})
-```
+1.  Clone the repository and navigate to the project directory.
+2.  Install Node.js dependencies:
+    `npm install`
+
+
+## Running the application locally
+
+To run the application locally, execute the following commands:
+
+- Compile and serve frontend assets using Vite:
+  `npm run dev`
+
+The application will now be available at the URL displayed by `npm run dev`
+
