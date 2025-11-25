@@ -3,6 +3,16 @@ import countries from "./countries.json";
 import { point, booleanPointInPolygon } from "@turf/turf";
 import type { Polygon, MultiPolygon, Feature } from "geojson";
 
+export interface CountryProperties {
+  name?: string;
+  iso_a3?: string;
+  continent?: string;
+  economy?: string;
+  income_grp?: string;
+  pop_est?: number;
+  [key: string]: unknown;
+}
+
 export function latLonToVector3(
   lat: number,
   lon: number,
@@ -19,26 +29,36 @@ export function latLonToVector3(
   return new THREE.Vector3(x, y, z);
 }
 
-export async function getCountryFromLatLon(lat: number, lon: number) {
+export async function getCountryFromLatLon(
+  lat: number,
+  lon: number
+): Promise<string> {
   const response = await fetch(
     `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json`
   );
+
+  if (!response.ok) {
+    throw new Error("Unable to fetch country from coordinates");
+  }
+
   const data = await response.json();
   return data.address !== undefined ? data.address.country : "Unknown";
 }
 
-export function getCountryFromJSON(lat: number, lon: number) {
+export function getCountryFromJSON(
+  lat: number,
+  lon: number
+): CountryProperties | null {
   const pt = point([lon, lat]);
 
   for (const rawFeature of countries.features) {
     const feature = rawFeature as Feature<Polygon | MultiPolygon>;
     if (booleanPointInPolygon(pt, feature)) {
-      console.log(feature.properties);
-      return feature?.properties?.name;
+      return (feature.properties as CountryProperties) ?? null;
     }
   }
 
-  return "Unknown";
+  return null;
 }
 
 /* Draw GeoJSON
@@ -334,7 +354,12 @@ export function drawThreeGeo(
     clearArrays();
   }
 
-  function drawLine(x_values: any, y_values: any, z_values: any, options: any) {
+  function drawLine(
+    x_values: number[],
+    y_values: number[],
+    z_values: number[],
+    options: any
+  ) {
     const line_geom = new THREE.BufferGeometry();
     createVertexForEachPoint(line_geom, x_values, y_values, z_values);
 
@@ -347,9 +372,9 @@ export function drawThreeGeo(
 
   function createVertexForEachPoint(
     object_geometry: any,
-    values_axis1: any,
-    values_axis2: any,
-    values_axis3: any
+    values_axis1: number[],
+    values_axis2: number[],
+    values_axis3: number[]
   ) {
     const verts = [];
     for (let i = 0; i < values_axis1.length; i++) {

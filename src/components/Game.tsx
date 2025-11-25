@@ -1,14 +1,21 @@
-import { useState, useEffect } from 'react';
-import Globe from './Globe';
+import { useState, useEffect, useCallback } from "react";
+import Globe, { type CountrySelection } from "./GlobeVisualisation";
 
-const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number) => {
+const calculateDistance = (
+  lat1: number,
+  lon1: number,
+  lat2: number,
+  lon2: number
+) => {
   const R = 6371; // Earth's radius in kilometers
   const dLat = (lat2 - lat1) * (Math.PI / 180);
   const dLon = (lon2 - lon1) * (Math.PI / 180);
   const a =
     Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-    Math.cos(lat1 * (Math.PI / 180)) * Math.cos(lat2 * (Math.PI / 180)) *
-    Math.sin(dLon / 2) * Math.sin(dLon / 2);
+    Math.cos(lat1 * (Math.PI / 180)) *
+      Math.cos(lat2 * (Math.PI / 180)) *
+      Math.sin(dLon / 2) *
+      Math.sin(dLon / 2);
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
   return R * c;
 };
@@ -20,8 +27,12 @@ const generateRandomLocation = () => {
 };
 
 const Game = () => {
-  const [targetLocation, setTargetLocation] = useState<{ lat: number; lon: number } | undefined>(undefined);
-  const [userGuess, setUserGuess] = useState<{ lat: number; lon: number } | undefined>(undefined);
+  const [targetLocation, setTargetLocation] = useState<
+    { lat: number; lon: number } | undefined
+  >(undefined);
+  const [userGuess, setUserGuess] = useState<
+    { lat: number; lon: number } | undefined
+  >(undefined);
   const [distance, setDistance] = useState<number | null>(null);
   const [gameStarted, setGameStarted] = useState(false);
 
@@ -34,28 +45,68 @@ const Game = () => {
     }
   }, [gameStarted]);
 
-  const handleGuess = (lat: number, lon: number) => {
-    if (!targetLocation) return;
-    
-    setUserGuess({ lat, lon });
-    const calculatedDistance = calculateDistance(
-      targetLocation.lat,
-      targetLocation.lon,
-      lat,
-      lon
+  useEffect(() => {
+    if (!targetLocation || !userGuess) {
+      return;
+    }
+
+    setDistance(
+      calculateDistance(
+        targetLocation.lat,
+        targetLocation.lon,
+        userGuess.lat,
+        userGuess.lon
+      )
     );
-    setDistance(calculatedDistance);
-  };
+  }, [targetLocation, userGuess]);
+
+  // const handleGuess = (lat: number, lon: number) => {
+  //   if (!targetLocation) return;
+
+  //   setUserGuess({ lat, lon });
+  //   const calculatedDistance = calculateDistance(
+  //     targetLocation.lat,
+  //     targetLocation.lon,
+  //     lat,
+  //     lon
+  //   );
+  //   setDistance(calculatedDistance);
+  // };
 
   const startNewGame = () => {
     setGameStarted(true);
   };
 
+  const handleCountrySelect = useCallback(
+    (selection: CountrySelection) => {
+      setUserGuess({ lat: selection.lat, lon: selection.lon });
+
+      console.group("Game guess");
+      if (targetLocation) {
+        console.log(
+          "Target location (lat, lon):",
+          targetLocation.lat.toFixed(4),
+          targetLocation.lon.toFixed(4)
+        );
+      } else {
+        console.log("Target location: not set");
+      }
+      console.log(
+        "User guess (lat, lon):",
+        selection.lat.toFixed(4),
+        selection.lon.toFixed(4)
+      );
+      console.log("Metadata:", selection.countryProperties ?? "Unknown");
+      console.groupEnd();
+    },
+    [targetLocation]
+  );
+
   return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-gray-900 text-white">
       <div className="w-full max-w-4xl">
         <h1 className="text-4xl font-bold mb-4 text-center">Globe Guessr</h1>
-        
+
         {!gameStarted ? (
           <div className="text-center">
             <button
@@ -72,13 +123,9 @@ const Game = () => {
                 Click on the globe to guess the location!
               </p>
             </div>
-            
+
             <div className="h-[600px] w-full">
-              <Globe
-                onGuess={handleGuess}
-                targetLocation={targetLocation}
-                userGuess={userGuess}
-              />
+              <Globe onCountrySelect={handleCountrySelect} />
             </div>
 
             {distance !== null && (
@@ -101,4 +148,4 @@ const Game = () => {
   );
 };
 
-export default Game; 
+export default Game;
